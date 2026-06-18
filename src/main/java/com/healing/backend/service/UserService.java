@@ -4,6 +4,7 @@ import com.healing.backend.dto.*;
 import com.healing.backend.model.User;
 import com.healing.backend.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Primary;
 import org.springframework.security.core.userdetails.*;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @Service
+@Primary
 @RequiredArgsConstructor
 public class UserService implements UserDetailsService {
 
@@ -34,11 +36,6 @@ public class UserService implements UserDetailsService {
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
     }
 
-    /**
-     * Map User entity → UserResponse DTO
-     * Sync spec: wajib include totalXp, currentLevel, levelTitle,
-     *            dailyCalorieTarget, recommendedCalories
-     */
     public UserResponse toResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -101,9 +98,6 @@ public class UserService implements UserDetailsService {
         return userRepository.save(user);
     }
 
-    /**
-     * Sync spec: Tambah XP dan cek level up
-     */
     @Transactional
     public boolean addXpAndCheckLevelUp(Long userId, int xp) {
         User user = userRepository.findById(userId)
@@ -113,10 +107,9 @@ public class UserService implements UserDetailsService {
         int newLevel = calculateLevel(user.getTotalXp());
         user.setCurrentLevel(newLevel);
         userRepository.save(user);
-        return newLevel > oldLevel; // true = level up
+        return newLevel > oldLevel;
     }
 
-    // XP needed per level: 500 * level
     public int calculateLevel(int totalXp) {
         int level = 1, needed = 500, remaining = totalXp;
         while (remaining >= needed) {
@@ -125,10 +118,6 @@ public class UserService implements UserDetailsService {
             needed = 500 * level;
         }
         return level;
-    }
-
-    public int getXpForNextLevel(int currentLevel) {
-        return 500 * currentLevel;
     }
 
     public List<String> parseList(String csv) {
