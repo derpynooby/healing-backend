@@ -1,10 +1,8 @@
 target/
 .mvn/
 *.class
-*.jar
 .idea/
 *.iml
 .DS_Store
-# JANGAN commit file ini
 application-local.properties
 *.env

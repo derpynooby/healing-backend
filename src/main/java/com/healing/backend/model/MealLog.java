@@ -29,8 +29,12 @@ public class MealLog {
     private Float carbs;
     private Float fat;
 
-    private String mealType;    // breakfast / snack / lunch / dinner
-    private Boolean isCheatTreat;
+    // breakfast / snack / lunch / dinner
+    private String mealType;
+
+    @Builder.Default
+    private Boolean isCheatTreat = false;
+
     private LocalDate date;
 
     @Column(updatable = false)

@@ -10,8 +10,9 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
- * Service backend untuk memanggil Gemini API.
- * API key disimpan aman di server — tidak pernah dikirim ke Android.
+ * Sync spec: Backend wajib memproses message dari user
+ * menggunakan API Gemini dan mengembalikan jawabannya dalam ChatResponse.
+ * API key AMAN di server — tidak pernah dikirim ke Android.
  */
 @Service
 public class GeminiService {
@@ -24,55 +25,56 @@ public class GeminiService {
 
     private final OkHttpClient httpClient;
     private final Gson gson = new Gson();
-    private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
+    private static final MediaType JSON_TYPE = MediaType.get("application/json; charset=utf-8");
 
     public GeminiService() {
         this.httpClient = new OkHttpClient.Builder()
                 .connectTimeout(30, TimeUnit.SECONDS)
                 .readTimeout(60, TimeUnit.SECONDS)
+                .writeTimeout(30, TimeUnit.SECONDS)
                 .build();
     }
 
-    /**
-     * Bangun system prompt personal — dijalankan di server, aman.
-     */
     public String buildSystemPrompt(User user, int caloriesConsumed, int caloriesBurned,
                                     int xpThisWeek, List<MealLog> todayMeals) {
         StringBuilder sb = new StringBuilder();
         sb.append("Kamu adalah Hana, AI health coach personal dari aplikasi Healing. ");
-        sb.append("Kamu berbicara dalam Bahasa Indonesia yang hangat, seperti teman dekat. ");
-        sb.append("Gunakan emoji secukupnya. Jangan terlalu formal. ");
-        sb.append("Jawab singkat dan natural, max 3-4 kalimat. ");
+        sb.append("Berbicara dalam Bahasa Indonesia yang hangat seperti teman dekat. ");
+        sb.append("Gunakan emoji secukupnya. Jawab singkat, max 3-4 kalimat. ");
         sb.append("Jangan pernah judgemental soal makanan favorit atau kemalasan user.\n\n");
 
         if (user != null) {
-            int target = user.getRecommendedCalories();
+            int target    = user.getRecommendedCalories();
+            int remaining = Math.max(0, target - caloriesConsumed);
+
             sb.append("=== DATA USER HARI INI ===\n");
-            sb.append("Nama: ").append(user.getName()).append("\n");
+            sb.append("Nama: ").append(user.getName() != null ? user.getName() : "Kamu").append("\n");
             sb.append("Target kalori: ").append(target).append(" kcal\n");
-            sb.append("Kalori dikonsumsi: ").append(caloriesConsumed).append(" kcal\n");
-            sb.append("Sisa kalori: ").append(Math.max(0, target - caloriesConsumed)).append(" kcal\n");
-            sb.append("Kalori dibakar: ").append(caloriesBurned).append(" kcal\n");
+            sb.append("Dikonsumsi: ").append(caloriesConsumed).append(" kcal\n");
+            sb.append("Sisa: ").append(remaining).append(" kcal\n");
+            sb.append("Dibakar: ").append(caloriesBurned).append(" kcal\n");
             sb.append("XP minggu ini: ").append(xpThisWeek).append("\n");
             sb.append("Level: ").append(user.getCurrentLevel())
               .append(" (").append(user.getLevelTitle()).append(")\n");
-            if (user.getFavoriteFoods() != null && !user.getFavoriteFoods().isEmpty())
+
+            if (user.getFavoriteFoods() != null && !user.getFavoriteFoods().isBlank())
                 sb.append("Makanan favorit: ").append(user.getFavoriteFoods()).append("\n");
-            if (user.getHobbies() != null && !user.getHobbies().isEmpty())
+            if (user.getHobbies() != null && !user.getHobbies().isBlank())
                 sb.append("Hobi: ").append(user.getHobbies()).append("\n");
+            if (user.getGoal() != null)
+                sb.append("Goal: ").append(user.getGoal()).append("\n");
+
             if (todayMeals != null) {
-                long cheats = todayMeals.stream().filter(m -> Boolean.TRUE.equals(m.getIsCheatTreat())).count();
-                if (cheats > 0) sb.append("Cheat & Treat hari ini: ").append(cheats).append(" item\n");
+                long cheatCount = todayMeals.stream()
+                        .filter(m -> Boolean.TRUE.equals(m.getIsCheatTreat())).count();
+                if (cheatCount > 0)
+                    sb.append("Cheat & Treat hari ini: ").append(cheatCount).append(" item\n");
             }
-            sb.append("Goal: ").append(user.getGoal()).append("\n");
             sb.append("========================\n");
         }
         return sb.toString();
     }
 
-    /**
-     * Kirim pesan ke Gemini dan return respons (synchronous — dipanggil dari @Async controller).
-     */
     public String chat(String systemPrompt, List<ChatMessage> history, String userMessage)
             throws IOException {
 
@@ -82,6 +84,7 @@ public class GeminiService {
         int start = Math.max(0, history.size() - 20);
         for (int i = start; i < history.size(); i++) {
             ChatMessage msg = history.get(i);
+            // Gemini pakai "model" bukan "assistant"
             String geminiRole = msg.isUser() ? "user" : "model";
             contents.add(buildContent(geminiRole, msg.getContent()));
         }
@@ -100,7 +103,6 @@ public class GeminiService {
         genConfig.addProperty("maxOutputTokens", 400);
         genConfig.addProperty("temperature", 0.75);
 
-        // Request body
         JsonObject body = new JsonObject();
         body.add("system_instruction", systemInstruction);
         body.add("contents", contents);
@@ -112,18 +114,19 @@ public class GeminiService {
         Request request = new Request.Builder()
                 .url(url)
                 .addHeader("Content-Type", "application/json")
-                .post(RequestBody.create(gson.toJson(body), JSON))
+                .post(RequestBody.create(gson.toJson(body), JSON_TYPE))
                 .build();
 
         try (Response response = httpClient.newCall(request).execute()) {
-            String responseBody = response.body().string();
+            String responseBody = response.body() != null ? response.body().string() : "";
             if (!response.isSuccessful()) {
                 throw new IOException("Gemini API error " + response.code() + ": " + responseBody);
             }
+
             JsonObject json = JsonParser.parseString(responseBody).getAsJsonObject();
             JsonArray candidates = json.getAsJsonArray("candidates");
             if (candidates == null || candidates.size() == 0)
-                throw new IOException("No candidates in Gemini response");
+                throw new IOException("Tidak ada respons dari Gemini");
 
             JsonArray parts = candidates.get(0).getAsJsonObject()
                     .getAsJsonObject("content")

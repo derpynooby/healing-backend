@@ -13,16 +13,32 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
-public class UserService {  // <-- hapus "implements UserDetailsService"
+public class UserService implements UserDetailsService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Override
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User tidak ditemukan: " + email));
+        return org.springframework.security.core.userdetails.User.builder()
+                .username(user.getEmail())
+                .password(user.getPassword())
+                .roles("USER")
+                .build();
+    }
 
     public User getUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
     }
 
+    /**
+     * Map User entity → UserResponse DTO
+     * Sync spec: wajib include totalXp, currentLevel, levelTitle,
+     *            dailyCalorieTarget, recommendedCalories
+     */
     public UserResponse toResponse(User user) {
         return UserResponse.builder()
                 .id(user.getId())
@@ -85,27 +101,45 @@ public class UserService {  // <-- hapus "implements UserDetailsService"
         return userRepository.save(user);
     }
 
+    /**
+     * Sync spec: Tambah XP dan cek level up
+     */
     @Transactional
-    public void addXp(Long userId, int xp) {
+    public boolean addXpAndCheckLevelUp(Long userId, int xp) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User tidak ditemukan"));
+        int oldLevel = user.getCurrentLevel();
         user.setTotalXp(user.getTotalXp() + xp);
-        user.setCurrentLevel(calculateLevel(user.getTotalXp()));
+        int newLevel = calculateLevel(user.getTotalXp());
+        user.setCurrentLevel(newLevel);
         userRepository.save(user);
+        return newLevel > oldLevel; // true = level up
     }
 
-    private int calculateLevel(int totalXp) {
+    // XP needed per level: 500 * level
+    public int calculateLevel(int totalXp) {
         int level = 1, needed = 500, remaining = totalXp;
-        while (remaining >= needed) { remaining -= needed; level++; needed = 500 * level; }
+        while (remaining >= needed) {
+            remaining -= needed;
+            level++;
+            needed = 500 * level;
+        }
         return level;
     }
 
-    private List<String> parseList(String csv) {
-        if (csv == null || csv.isBlank()) return List.of();
-        return Arrays.asList(csv.split(","));
+    public int getXpForNextLevel(int currentLevel) {
+        return 500 * currentLevel;
     }
 
-    private String joinList(List<String> list) {
+    public List<String> parseList(String csv) {
+        if (csv == null || csv.isBlank()) return List.of();
+        return Arrays.stream(csv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .toList();
+    }
+
+    public String joinList(List<String> list) {
         return list == null ? null : String.join(",", list);
     }
 }

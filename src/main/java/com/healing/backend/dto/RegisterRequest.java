@@ -1,10 +1,9 @@
 package com.healing.backend.dto;
-
 import jakarta.validation.constraints.*;
 import lombok.*;
 import java.util.List;
 
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data @NoArgsConstructor @AllArgsConstructor
 public class RegisterRequest {
     @NotBlank public String name;
     @Email @NotBlank public String email;

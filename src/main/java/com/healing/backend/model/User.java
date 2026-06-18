@@ -3,7 +3,6 @@ package com.healing.backend.model;
 import jakarta.persistence.*;
 import lombok.*;
 import java.time.LocalDateTime;
-import java.util.List;
 
 @Entity
 @Table(name = "users")
@@ -21,27 +20,30 @@ public class User {
     private String email;
 
     @Column(nullable = false)
-    private String password;   // BCrypt hashed
+    private String password;
 
     @Column(nullable = false)
     private String name;
 
     private Integer age;
-    private Float weight;      // kg
-    private Float height;      // cm
-    private String gender;     // "male" / "female"
+    private Float weight;
+    private Float height;
+    private String gender;
     private String activityLevel;
-    private String goal;       // "lose" / "maintain" / "gain"
-
-    // Stored as comma-separated string for simplicity
-    @Column(columnDefinition = "TEXT")
-    private String favoriteFoods;
+    private String goal;
 
     @Column(columnDefinition = "TEXT")
-    private String hobbies;
+    private String favoriteFoods;   // comma-separated
 
-    private Integer totalXp;
-    private Integer currentLevel;
+    @Column(columnDefinition = "TEXT")
+    private String hobbies;         // comma-separated
+
+    @Builder.Default
+    private Integer totalXp = 0;
+
+    @Builder.Default
+    private Integer currentLevel = 1;
+
     private Integer dailyCalorieTarget;
 
     @Column(updatable = false)
@@ -62,10 +64,11 @@ public class User {
         updatedAt = LocalDateTime.now();
     }
 
-    // Helper: BMR menggunakan Mifflin-St Jeor
+    // ── Kalori kalkulasi ──────────────────────────────
+
     public float getBMR() {
         if (weight == null || height == null || age == null) return 2000f;
-        if ("male".equals(gender)) {
+        if ("male".equalsIgnoreCase(gender)) {
             return 88.362f + (13.397f * weight) + (4.799f * height) - (5.677f * age);
         } else {
             return 447.593f + (9.247f * weight) + (3.098f * height) - (4.330f * age);
@@ -76,20 +79,21 @@ public class User {
         float bmr = getBMR();
         float tdee;
         switch (activityLevel != null ? activityLevel : "sedentary") {
-            case "light":      tdee = bmr * 1.375f; break;
-            case "moderate":   tdee = bmr * 1.55f;  break;
-            case "active":     tdee = bmr * 1.725f; break;
-            case "very_active":tdee = bmr * 1.9f;   break;
-            default:           tdee = bmr * 1.2f;
+            case "light":       tdee = bmr * 1.375f; break;
+            case "moderate":    tdee = bmr * 1.55f;  break;
+            case "active":      tdee = bmr * 1.725f; break;
+            case "very_active": tdee = bmr * 1.9f;   break;
+            default:            tdee = bmr * 1.2f;
         }
         switch (goal != null ? goal : "maintain") {
-            case "lose":  return Math.round(tdee - 500);
-            case "gain":  return Math.round(tdee + 300);
-            default:      return Math.round(tdee);
+            case "lose": return Math.round(tdee - 500);
+            case "gain": return Math.round(tdee + 300);
+            default:     return Math.round(tdee);
         }
     }
 
     public String getLevelTitle() {
+        if (currentLevel == null) return "Newbie";
         if (currentLevel >= 20) return "Health Legend";
         if (currentLevel >= 15) return "Wellness Master";
         if (currentLevel >= 10) return "Active Hero";

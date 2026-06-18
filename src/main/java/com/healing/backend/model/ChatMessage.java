@@ -21,7 +21,7 @@ public class ChatMessage {
     private User user;
 
     @Column(nullable = false)
-    private String role;       // "user" or "assistant"
+    private String role;    // "user" or "assistant"
 
     @Column(columnDefinition = "TEXT", nullable = false)
     private String content;

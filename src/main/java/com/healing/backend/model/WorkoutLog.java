@@ -22,13 +22,19 @@ public class WorkoutLog {
     private User user;
 
     private String workoutName;
-    private String workoutType;     // cardio / strength / hobby_walk / hobby_dance
+    private String workoutType;
     private Integer durationMinutes;
     private Integer caloriesBurned;
     private Integer xpEarned;
-    private Boolean isHobbyBased;
+
+    @Builder.Default
+    private Boolean isHobbyBased = false;
+
     private String hobbyTag;
-    private Boolean completed;
+
+    @Builder.Default
+    private Boolean completed = false;
+
     private LocalDate date;
 
     @Column(updatable = false)
@@ -40,24 +46,25 @@ public class WorkoutLog {
         if (date == null) date = LocalDate.now();
         if (completed == null) completed = false;
         if (isHobbyBased == null) isHobbyBased = false;
-        if (caloriesBurned == null) caloriesBurned = calculateCalories();
-        if (xpEarned == null) xpEarned = calculateXp();
+        // Auto-calculate calories and XP
+        if (caloriesBurned == null) caloriesBurned = calcCalories();
+        if (xpEarned == null) xpEarned = calcXp();
     }
 
-    private int calculateCalories() {
+    private int calcCalories() {
         if (durationMinutes == null) return 0;
         switch (workoutType != null ? workoutType : "") {
-            case "cardio":       return (int)(durationMinutes * 8.5f);
-            case "strength":     return (int)(durationMinutes * 5.0f);
-            case "hobby_walk":   return (int)(durationMinutes * 4.0f);
-            case "hobby_dance":  return (int)(durationMinutes * 6.5f);
-            default:             return (int)(durationMinutes * 4.5f);
+            case "cardio":      return Math.round(durationMinutes * 8.5f);
+            case "strength":    return Math.round(durationMinutes * 5.0f);
+            case "hobby_walk":  return Math.round(durationMinutes * 4.0f);
+            case "hobby_dance": return Math.round(durationMinutes * 6.5f);
+            default:            return Math.round(durationMinutes * 4.5f);
         }
     }
 
-    private int calculateXp() {
+    private int calcXp() {
         if (durationMinutes == null) return 0;
         int base = durationMinutes * 2;
-        return Boolean.TRUE.equals(isHobbyBased) ? (int)(base * 1.25f) : base;
+        return Boolean.TRUE.equals(isHobbyBased) ? Math.round(base * 1.25f) : base;
     }
 }
