@@ -1,24 +1,17 @@
 package com.healing.backend.dto;
 
-import lombok.*;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-// ─────────────── FOOD SCAN ───────────────
-
-/**
- * Request scan foto makanan.
- * imageBase64: gambar dalam format base64 string.
- */
-@Data @NoArgsConstructor @AllArgsConstructor
-public class FoodScanRequest {
-    // Gambar dalam format base64
-    public String imageBase64;
-    // MIME type: "image/jpeg" atau "image/png"
-    public String mimeType;
-}
-
-@Data @Builder @NoArgsConstructor @AllArgsConstructor
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 class FoodScanResponse {
     public Long id;
     // Nama makanan yang terdeteksi
@@ -41,11 +34,4 @@ class FoodScanResponse {
     public LocalDateTime createdAt;
     // Disclaimer wajib sesuai spec
     public String disclaimer;
-}
-
-@Data @NoArgsConstructor @AllArgsConstructor
-class LogScanToMealRequest {
-    // mealType: breakfast / snack / lunch / dinner
-    public String mealType;
-    public LocalDate date;
 }
