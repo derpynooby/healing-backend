@@ -9,7 +9,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-class LogScanToMealRequest {
+public class LogScanToMealRequest {
     // mealType: breakfast / snack / lunch / dinner
     public String mealType;
     public LocalDate date;

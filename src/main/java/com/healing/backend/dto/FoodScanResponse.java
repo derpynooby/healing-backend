@@ -12,7 +12,7 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-class FoodScanResponse {
+public class FoodScanResponse {
     public Long id;
     // Nama makanan yang terdeteksi
     public String detectedFoodName;

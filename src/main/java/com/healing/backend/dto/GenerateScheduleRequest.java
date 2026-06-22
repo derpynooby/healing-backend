@@ -14,6 +14,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@Builder
 public class GenerateScheduleRequest {
     // Tanggal mulai jadwal
     public LocalDate startDate;
