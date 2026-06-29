@@ -8,6 +8,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.authentication.*;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -58,24 +59,41 @@ public class AuthController {
     public ResponseEntity<ApiResponse<AuthResponse>> login(
             @Valid @RequestBody LoginRequest req) {
         try {
-            authManager.authenticate(
-                new UsernamePasswordAuthenticationToken(req.getEmail(), req.getPassword()));
-            User user    = userService.getUserByEmail(req.getEmail());
+            // FIX: wrap authenticate() dalam try-catch yang lebih spesifik
+            Authentication auth = authManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(
+                            req.getEmail().trim().toLowerCase(),
+                            req.getPassword()
+                    )
+            );
+
+            // Ambil user dari database (bukan dari Authentication object)
+            User user    = userService.getUserByEmail(req.getEmail().trim().toLowerCase());
             String token = jwtUtil.generateToken(user.getEmail());
+
             return ResponseEntity.ok(ApiResponse.ok(
-                "Login berhasil!",
-                AuthResponse.builder()
-                    .token(token)
-                    .tokenType("Bearer")
-                    .user(userService.toResponse(user))
-                    .build()
+                    "Login berhasil!",
+                    AuthResponse.builder()
+                            .token(token)
+                            .tokenType("Bearer")
+                            .user(userService.toResponse(user))
+                            .build()
             ));
+
         } catch (BadCredentialsException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Email atau password salah"));
-        } catch (RuntimeException e) {
+        } catch (DisabledException e) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error(e.getMessage()));
+                    .body(ApiResponse.error("Akun tidak aktif"));
+        } catch (LockedException e) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Akun terkunci"));
+        } catch (Exception e) {
+            // Log the actual error for debugging
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ApiResponse.error("Login gagal: " + e.getMessage()));
         }
     }
 }
