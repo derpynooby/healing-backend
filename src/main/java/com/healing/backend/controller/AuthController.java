@@ -80,20 +80,26 @@ public class AuthController {
                             .build()
             ));
 
-        } catch (BadCredentialsException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Email atau password salah"));
-        } catch (DisabledException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Akun tidak aktif"));
-        } catch (LockedException e) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Akun terkunci"));
         } catch (Exception e) {
-            // Log the actual error for debugging
+            // Tambahkan log ini agar terlihat di tab Deploy Logs Railway
+            System.err.println("DEBUG LOGIN ERROR: " + e.getClass().getName() + " - " + e.getMessage());
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ApiResponse.error("Login gagal: " + e.getMessage()));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Login gagal: " + e.getMessage()));
+
+//        } catch (BadCredentialsException e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(ApiResponse.error("Email atau password salah"));
+//        } catch (DisabledException e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(ApiResponse.error("Akun tidak aktif"));
+//        } catch (LockedException e) {
+//            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+//                    .body(ApiResponse.error("Akun terkunci"));
+//        } catch (Exception e) {
+//            // Log the actual error for debugging
+//            e.printStackTrace();
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+//                    .body(ApiResponse.error("Login gagal: " + e.getMessage()));
         }
     }
 }
